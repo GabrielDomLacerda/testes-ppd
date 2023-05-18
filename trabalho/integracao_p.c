@@ -45,6 +45,8 @@ void *calcular(void *args)
          local_sum = 0.0;
 
   unsigned int steps = (unsigned int)1.0 / h;
+  if (steps % 10 != 0)
+    steps++;
 
   for (unsigned int i = params->ini; i <= params->fim; i++)
   {
@@ -78,6 +80,8 @@ int main(int ac, char **av)
          fim;
 
   unsigned int steps = (unsigned int)1.0 / h;
+  if (steps % 10 != 0)
+    steps++;
   int chunk_size = ceil(steps / (double)MAX_THREADS);
 
   fprintf(stdout, "\nIntegração de uma função f(x)\n");

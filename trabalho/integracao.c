@@ -18,6 +18,8 @@ int main(int ac, char **av)
          sum = 0.0;
 
   unsigned int steps = (unsigned int)1.0 / h;
+  if (steps % 10 != 0)
+    steps++;
 
   fprintf(stdout, "\nIntegração de uma função f(x)\n");
   fprintf(stdout, "Qtde. de trapézios: %u - valor do h = %15.10lf\n", steps, h);
