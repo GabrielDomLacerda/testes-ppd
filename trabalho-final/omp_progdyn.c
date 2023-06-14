@@ -7,7 +7,7 @@ int max(int a, int b)
     return a >= b ? a : b;
 }
 
-int knapsack_dyn(int capacity, int *weights, int *values, int n)
+int parallel_knapsack_dyn(int capacity, int *weights, int *values, int n)
 {
     int i, w;
     int **matriz = (int **)malloc(sizeof(int *) * (n + 1));
@@ -22,6 +22,7 @@ int knapsack_dyn(int capacity, int *weights, int *values, int n)
 
     for (i = 1; i <= n; i++)
     {
+#pragma omp parallel for
         for (w = 1; w <= capacity; w++)
         {
             matriz[i][w] = max(values[i - 1] + matriz[i - 1][w - weights[i - 1]],
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
     int weights[n], values[n];
     read_values(file, weights, values, n);
 
-    printf("BEST KNAPSACK: %d\n", knapsack_dyn(W, weights, values, n));
+    printf("BEST KNAPSACK: %d\n", parallel_knapsack_dyn(W, weights, values, n));
 
     return 0;
 }
