@@ -2,16 +2,27 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <time.h>
+#include <math.h>
 
 int max(int a, int b)
 {
     return a >= b ? a : b;
 }
 
+int min(int a, int b)
+{
+    return a >= b ? b : a;
+}
+
 int knapsack_dyn(int capacity, int *weights, int *values, int n)
 {
     MPI_Init(NULL, NULL);
     int rank, size;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int chunk_size = ceil(n / (double)size);
 
     int i, w;
     int **matriz = (int **)malloc(sizeof(int *) * (n + 1));
@@ -24,17 +35,15 @@ int knapsack_dyn(int capacity, int *weights, int *values, int n)
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    MPI_Send(matriz[0], capacity + 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-
-    for (i = 1; i < n; i++)
+    int k = rank * chunk_size;
+    int final = min(n, k + chunk_size);
+    if (rank != 0)
     {
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-        MPI_Recv(matriz[i - 1], capacity + 1, MPI_INT, (rank - 1) % size, i - 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (w = 1; w <= capacity; w++)
+        MPI_Recv(matriz[k - 1], capacity + 1, MPI_INT, (rank - 1) % size, k - 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    for (i = k; i < final; i++)
+    {
+        for (w = 0; w <= capacity; w++)
         {
             matriz[i][w] = max(values[i - 1] + matriz[i - 1][w - weights[i - 1]],
                                matriz[i - 1][w]) *
@@ -43,12 +52,8 @@ int knapsack_dyn(int capacity, int *weights, int *values, int n)
             printf("%d ", matriz[i][w]);
         }
         printf("\n");
-        MPI_Send(matriz[i], capacity + 1, MPI_INT, rank % size, i, MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    MPI_Recv(matriz[n], capacity + 1, MPI_INT, size - 1, n, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Send(matriz[final], capacity + 1, MPI_INT, (rank + 1) % size, final, MPI_COMM_WORLD);
 
     MPI_Finalize();
     return matriz[n][capacity];
