@@ -14,7 +14,7 @@ int min(int a, int b)
     return a >= b ? b : a;
 }
 
-int knapsack_dyn(int capacity, int *weights, int *values, int n)
+int mpi_knapsack_dyn(int capacity, int *weights, int *values, int n)
 {
     MPI_Init(NULL, NULL);
     int rank, size;
@@ -22,7 +22,7 @@ int knapsack_dyn(int capacity, int *weights, int *values, int n)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    int chunk_size = ceil(n / (double)size);
+    int chunk_size = ceil((double)(n + 1) / (double)(size));
 
     int i, w;
     int **matriz = (int **)malloc(sizeof(int *) * (n + 1));
@@ -37,23 +37,25 @@ int knapsack_dyn(int capacity, int *weights, int *values, int n)
 
     int k = rank * chunk_size;
     int final = min(n, k + chunk_size);
+
     if (rank != 0)
     {
-        MPI_Recv(matriz[k - 1], capacity + 1, MPI_INT, (rank - 1) % size, k - 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(matriz[k], capacity + 1, MPI_INT, (rank - 1) % size, k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
-    for (i = k; i < final; i++)
+    for (i = k + 1; i <= final; i++)
     {
-        for (w = 0; w <= capacity; w++)
+        for (w = 1; w <= capacity; w++)
         {
             matriz[i][w] = max(values[i - 1] + matriz[i - 1][w - weights[i - 1]],
                                matriz[i - 1][w]) *
                                (weights[i - 1] <= w) +
                            matriz[i - 1][w] * (!(weights[i - 1] <= w));
-            printf("%d ", matriz[i][w]);
         }
-        printf("\n");
     }
-    MPI_Send(matriz[final], capacity + 1, MPI_INT, (rank + 1) % size, final, MPI_COMM_WORLD);
+    if (rank != size - 1)
+    {
+        MPI_Send(matriz[final], capacity + 1, MPI_INT, (rank + 1) % size, final, MPI_COMM_WORLD);
+    }
 
     MPI_Finalize();
     return matriz[n][capacity];
@@ -74,14 +76,12 @@ int main(int argc, char *argv[])
     if (argc <= 1)
         return 1;
     FILE *file = fopen(argv[1], "r");
-    int i, n, W;
+    int n, W;
     fscanf(file, "%d %d", &n, &W);
     int weights[n], values[n];
     read_values(file, weights, values, n);
 
-    int result = knapsack_dyn(W, weights, values, n);
-
-    printf("BEST KNAPSACK: %d\n", result);
+    printf("BEST KNAPSACK: %d\n", mpi_knapsack_dyn(W, weights, values, n));
 
     return 0;
 }
